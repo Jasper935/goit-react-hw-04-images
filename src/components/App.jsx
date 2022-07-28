@@ -1,4 +1,3 @@
-import { Component } from 'react';
 import { ImageGallery } from './ImageGallery/ImageGallery';
 import { fetchByName } from 'api/fetchByName';
 import { Searchbar } from './Searchbar/Searchbar';
@@ -7,77 +6,65 @@ import { Modal } from './Modal/Modal';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Loader } from './Loader/Loader';
-export class App extends Component {
-  state = {
-    gallery: [],
-    loader: false,
-    page: 1,
-    search: '',
-    totalHits: 0,
-    imgForModal: '',
-  };
+import { useState } from 'react';
+import { useEffect } from 'react';
+export const App = () => {
+  const [gallery, setGallery] = useState([]);
+  const [loader, setLoader] = useState(false);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [totalHits, setTotalHits] = useState(0);
+  const [imgForModal, setImgForModal] = useState('');
 
-  componentDidUpdate = (prProps, prevState) => {
-    const { search, page } = this.state;
-    if (prevState.search !== search) {
-      this.setState({ loader: true });
-      fetchByName(search, page)
-        .then(res => {
-          if (res.data.hits.length === 0 || search.trim() === '') {
-            toast.warning('Enter correct value');
-            return;
-          }
-          this.setState(prSt => ({
-            gallery: [...res.data.hits],
-
-            totalHits: res.data.totalHits,
-          }));
-        })
-        .finally(() => this.setState({ loader: false }));
+  useEffect(() => {
+    if (!search) {
+      return;
     }
+    setLoader(true);
+
+    fetchByName(search, page)
+      .then(res => {
+        if (res.data.hits.length === 0 || search.trim() === '') {
+          toast.warning('Enter correct value');
+
+          return;
+        }
+
+        setGallery(prSt => [...prSt, ...res.data.hits]);
+        setTotalHits(res.data.totalHits);
+      })
+      .finally(() => setLoader(false));
+  }, [page, search]);
+
+  const getFirstPage = () => {
+    setPage(1);
   };
-  getFirstPage = () => {
-    this.setState({
-      page: 1,
-    });
-  };
-  getSearch = s => {
-    this.setState({ search: s });
+  const getSearch = s => {
+    setGallery([]);
+    setSearch(s);
   };
 
-  openModal = img => {
-    this.setState({
-      imgForModal: img,
-    });
+  const openModal = img => {
+    setImgForModal(img);
   };
-  onClick = () => {
-    const { search, page } = this.state;
-    fetchByName(search, page + 1).then(res =>
-      this.setState(prevSt => ({
-        gallery: [...prevSt.gallery, ...res.data.hits],
-        page: prevSt.page + 1,
-      }))
-    );
+  const onClick = () => {
+    setPage(prev => prev + 1);
   };
 
-  render() {
-    const { page, gallery, totalHits, loader, imgForModal } = this.state;
-    return (
-      <>
-        <Searchbar
-          getSearch={this.getSearch}
-          getFirstPage={this.getFirstPage}
-        />
-        {loader && <Loader />}
-        <ToastContainer />
-        {imgForModal && <Modal img={imgForModal} openModal={this.openModal} />}
-        {gallery.length > 0 && (
-          <ImageGallery gallery={gallery} openModal={this.openModal} />
-        )}
-        {totalHits >= 12 * page && gallery.length > 0 && (
-          <Button onClick={this.onClick} />
-        )}
-      </>
-    );
-  }
-}
+  return (
+    <>
+      <Searchbar getSearch={getSearch} getFirstPage={getFirstPage} />
+      {loader && <Loader />}
+      <ToastContainer />
+      {imgForModal && <Modal img={imgForModal} openModal={openModal} />}
+      {gallery.length > 0 ? (
+        <ImageGallery gallery={gallery} openModal={openModal} />
+      ) : (
+        <h2>Please, search an image</h2>
+      )}
+      {totalHits >= 12 * page && gallery.length > 0 && (
+        <Button onClick={onClick} />
+      )}
+    </>
+  );
+};
